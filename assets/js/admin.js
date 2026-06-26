@@ -1,6 +1,6 @@
 document.addEventListener( 'DOMContentLoaded', function() {
 	// Access localized data provided by PHP utilizing the new polai prefix
-	const { apiKey, model, endpoint, siteUrl, siteName, activeLanguages, i18n } = polaiTranslatorData;
+	const { hasApiKey, model, ajaxUrl, nonce, activeLanguages, i18n } = polaiTranslatorData;
 
 	// --- Settings Page Custom Dropdown and AJAX Model Load ---
 	const dropdown = document.getElementById( 'polai_model_dropdown' );
@@ -156,7 +156,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 	// --- Polylang Strings Translation Engine ---
 	const translationCells = document.querySelectorAll( 'td.column-translations' );
 
-	if ( apiKey && model && translationCells.length > 0 ) {
+	if ( hasApiKey && model && translationCells.length > 0 ) {
 		// Normalize active languages to lowercase for robust matching
 		const validLanguages = ( activeLanguages || [] ).map( function( lang ) {
 			return lang.toLowerCase();
@@ -231,23 +231,19 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					iconWrapper.classList.add( 'loading' );
 
 					try {
-						const response = await fetch( endpoint, {
+						// Create form data payload for WordPress AJAX.
+						const formData = new URLSearchParams();
+						formData.append( 'action', 'polai_translate' );
+						formData.append( 'nonce', nonce );
+						formData.append( 'source_text', sourceText );
+						formData.append( 'target_lang', langText );
+
+						const response = await fetch( ajaxUrl, {
 							method: 'POST',
 							headers: {
-								'Content-Type': 'application/json',
-								'Authorization': 'Bearer ' + apiKey,
-								'HTTP-Referer': siteUrl,
-								'X-Title': siteName
+								'Content-Type': 'application/x-www-form-urlencoded'
 							},
-							body: JSON.stringify( {
-								model: model,
-								messages: [
-									{
-										role: 'user',
-										content: prompt
-									}
-								]
-							} )
+							body: formData.toString()
 						} );
 
 						if ( ! response.ok ) {
@@ -256,14 +252,12 @@ document.addEventListener( 'DOMContentLoaded', function() {
 						}
 
 						const data = await response.json();
-						const translatedText = data.choices?.[0]?.message?.content;
 
-						if ( translatedText ) {
-							// Remove quotes if they were added unnecessarily
-							const cleanText = translatedText.replace( /^"|"$/g, '' );
-							input.value = cleanText;
+						if ( data.success && data.data && data.data.translation ) {
+							input.value = data.data.translation;
 						} else {
-							alert( i18n.failedEmpty );
+							const errorMsg = data.data && data.data.message ? data.data.message : i18n.failedEmpty;
+							alert( errorMsg );
 						}
 					} catch ( err ) {
 						console.error( 'API error:', err );
@@ -274,7 +268,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				} );
 			} );
 		} );
-	} else if ( ! apiKey || ! model ) {
+	} else if ( ! hasApiKey || ! model ) {
 		console.warn( 'Pelikan Translator: API Key or Model is empty. Translation features are disabled. Please configure them in the settings.' );
 	}
 } );

@@ -3,13 +3,14 @@
  * Plugin Name:       Pelikan AI Translator for Polylang
  * Plugin URI:        https://wordpress.org/plugins/pelikan-ai-translator-for-polylang
  * Description:       Adds automated translation capabilities to PolyLang string translation.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            micromax
  * Text Domain:       pelikan-ai-translator-for-polylang
  * Domain Path:       /languages
  * License:           GPL-2.0+
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 // Exit if accessed directly.
@@ -18,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin version constant with the required prefix.
-define( 'POLAI_VERSION', '1.0.1' );
+define( 'POLAI_VERSION', '1.0.2' );
 
 class Polai_Translator {
 
@@ -30,6 +31,7 @@ class Polai_Translator {
 		// Priority 99 ensures Polylang's 'mlang' menu exists before we add our submenu.
 		add_action( 'admin_menu', array( $this, 'add_settings_page' ), 99 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		add_action( 'wp_ajax_polai_translate', array( $this, 'ajax_translate' ) );
 	}
 
 	/**
@@ -66,7 +68,7 @@ class Polai_Translator {
 						<h1>Pelikan Translator</h1>
 						<p><?php esc_html_e( 'Premium Polylang String Translation', 'pelikan-ai-translator-for-polylang' ); ?></p>
 					</div>
-					<div class="polai-version-badge">v<?php echo POLAI_VERSION; ?></div>
+					<div class="polai-version-badge">v<?php echo esc_html( POLAI_VERSION ); ?></div>
 				</div>
 
 				<div class="polai-grid">
@@ -311,11 +313,10 @@ class Polai_Translator {
 			'polai-admin-script',
 			'polaiTranslatorData',
 			array(
-				'apiKey'          => $api_key,
+				'hasApiKey'       => ! empty( $api_key ),
 				'model'           => $model,
-				'endpoint'        => 'https://openrouter.ai/api/v1/chat/completions',
-				'siteUrl'         => esc_url_raw( get_site_url() ),
-				'siteName'        => $safe_site_name,
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'polai_translate_nonce' ),
 				'activeLanguages' => $active_languages,
 				'i18n'            => array(
 					'translateInto' => __( 'Translate into', 'pelikan-ai-translator-for-polylang' ),
@@ -325,6 +326,94 @@ class Polai_Translator {
 				)
 			)
 		);
+	}
+
+	/**
+	 * Handle AJAX translation request.
+	 */
+	public function ajax_translate() {
+		// Verify capabilities.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'pelikan-ai-translator-for-polylang' ) ), 403 );
+		}
+
+		// Verify nonce.
+		if ( ! check_ajax_referer( 'polai_translate_nonce', 'nonce', false ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'pelikan-ai-translator-for-polylang' ) ), 403 );
+		}
+
+		// Retrieve inputs.
+		$source_text = isset( $_POST['source_text'] ) ? wp_unslash( $_POST['source_text'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$target_lang = isset( $_POST['target_lang'] ) ? sanitize_text_field( wp_unslash( $_POST['target_lang'] ) ) : '';
+
+		if ( empty( $source_text ) || empty( $target_lang ) ) {
+			wp_send_json_error( array( 'message' => __( 'Source text or target language is missing.', 'pelikan-ai-translator-for-polylang' ) ), 400 );
+		}
+
+		$api_key = get_option( 'polai_api_key', '' );
+		$model   = get_option( 'polai_model', 'google/gemini-3-flash-preview' );
+
+		if ( empty( $api_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'API Key is not configured.', 'pelikan-ai-translator-for-polylang' ) ), 400 );
+		}
+
+		// Ensure site name contains only ASCII characters.
+		$raw_site_name  = wp_strip_all_tags( get_bloginfo( 'name' ) );
+		$safe_site_name = preg_replace( '/[^\x20-\x7E]/', '', $raw_site_name );
+		if ( empty( trim( $safe_site_name ) ) ) {
+			$safe_site_name = 'Polai Translator';
+		}
+
+		$prompt = 'You are a helpful translation assistant. Translate the following English phrase into ' . $target_lang . '. Respond only with the translated text and nothing else and if there are html elements inside text do not remove them and also Never use mdash in any text and use a regular hyphen or alternative wording instead: ' . $source_text;
+
+		$response = wp_remote_post(
+			'https://openrouter.ai/api/v1/chat/completions',
+			array(
+				'timeout'     => 30,
+				'redirection' => 5,
+				'httpversion' => '1.0',
+				'blocking'    => true,
+				'headers'     => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+					'HTTP-Referer'  => esc_url_raw( get_site_url() ),
+					'X-Title'       => $safe_site_name,
+				),
+				'body'        => wp_json_encode( array(
+					'model'    => $model,
+					'messages' => array(
+						array(
+							'role'    => 'user',
+							'content' => $prompt,
+						),
+					),
+				) ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			wp_send_json_error( array( 'message' => $response->get_error_message() ), 500 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$body          = wp_remote_retrieve_body( $response );
+
+		if ( 200 !== $response_code ) {
+			// translators: 1: HTTP status code, 2: Response body.
+			$error_message = sprintf( __( 'API returned status code %1$d: %2$s', 'pelikan-ai-translator-for-polylang' ), $response_code, $body );
+			wp_send_json_error( array( 'message' => $error_message ), 500 );
+		}
+
+		$data = json_decode( $body, true );
+		$translated_text = isset( $data['choices'][0]['message']['content'] ) ? $data['choices'][0]['message']['content'] : '';
+
+		if ( ! empty( $translated_text ) ) {
+			// Remove surrounding quotes if they were added unnecessarily.
+			$clean_text = preg_replace( '/^"|"$/', '', trim( $translated_text ) );
+			wp_send_json_success( array( 'translation' => $clean_text ) );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Translation failed or empty response.', 'pelikan-ai-translator-for-polylang' ) ), 500 );
+		}
 	}
 }
 

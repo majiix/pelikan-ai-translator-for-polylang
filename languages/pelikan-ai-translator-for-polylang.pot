@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 "Project-Id-Version: Polai AI Translator for Polylang\n"
-"POT-Creation-Date: 2026-03-17 12:50+0330\n"
+"POT-Creation-Date: 2026-06-26 17:53+0330\n"
 "PO-Revision-Date: 2026-02-24 13:32+0330\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -21,75 +21,138 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 "X-Poedit-SearchPathExcluded-0: *.js\n"
 
-#: pelikan-ai-translator-for-polylang.php:41
-#: pelikan-ai-translator-for-polylang.php:58
+#: pelikan-ai-translator-for-polylang.php:43
 msgid "Pelikan Translator Settings"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:42
+#: pelikan-ai-translator-for-polylang.php:44
 msgid "Pelikan Translator"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:61
-msgid "How to Use Pelikan Translator"
+#: pelikan-ai-translator-for-polylang.php:69
+msgid "Premium Polylang String Translation"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:63
-msgid ""
-"Enter your valid OpenRouter API Key and preferred Model ID below, then save "
-"your changes."
+#: pelikan-ai-translator-for-polylang.php:84
+msgid "OpenRouter API Key"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:64
-msgid ""
-"Navigate to Languages > Translations (the Polylang Strings translation page)."
+#: pelikan-ai-translator-for-polylang.php:88
+msgid "Toggle Password Visibility"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:65
-msgid ""
-"Click the translation icon next to the input field for the language you wish "
-"to translate into."
-msgstr ""
-
-#: pelikan-ai-translator-for-polylang.php:66
-msgid ""
-"The plugin will automatically fetch the translation and insert it into the "
-"field."
+#: pelikan-ai-translator-for-polylang.php:92
+msgid "Enter your OpenRouter API Key. Your credentials are securely processed."
 msgstr ""
 
 #: pelikan-ai-translator-for-polylang.php:99
-msgid "General Configuration"
-msgstr ""
-
-#: pelikan-ai-translator-for-polylang.php:106
-msgid "API Key"
+msgid "Translation Model"
 msgstr ""
 
 #: pelikan-ai-translator-for-polylang.php:114
+msgid "Search models..."
+msgstr ""
+
+#. translators: 1: Link tag, 2: Closing link tag.
+#: pelikan-ai-translator-for-polylang.php:128
+#, php-format
+msgid ""
+"Select your translation model. You can view available models %1$shere%2$s."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:142
+msgid "Save Configuration"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:152
+msgid "How to Use"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:158
+msgid "Setup Key & Model"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:159
+msgid ""
+"Enter your OpenRouter key, choose your preferred translation model, and save "
+"changes."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:165
+msgid "Go to Polylang Strings"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:166
+msgid ""
+"Navigate to Languages > Translations inside your WordPress admin dashboard."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:172
+msgid "One-Click Translation"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:173
+msgid ""
+"Click the new translation button next to any text field to automatically "
+"translate from English."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:203
+msgid "General Configuration"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:210
+msgid "API Key"
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:218
 msgid "Model"
 msgstr ""
 
 #. translators: 1: HTML formatted example model ID, 2: Opening link tag, 3: Closing link tag.
-#: pelikan-ai-translator-for-polylang.php:141
+#: pelikan-ai-translator-for-polylang.php:245
 #, php-format
 msgid ""
 "Enter the model ID (e.g., %1$s). You can find available models %2$shere%3$s."
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:219
+#: pelikan-ai-translator-for-polylang.php:322
 msgid "Translate into"
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:220
+#: pelikan-ai-translator-for-polylang.php:323
 msgid "No source text found."
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:221
+#: pelikan-ai-translator-for-polylang.php:324
+#: pelikan-ai-translator-for-polylang.php:415
 msgid "Translation failed or empty response."
 msgstr ""
 
-#: pelikan-ai-translator-for-polylang.php:222
+#: pelikan-ai-translator-for-polylang.php:325
 msgid "Translation failed. Check console for details."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:337
+msgid "Permission denied."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:342
+msgid "Security check failed."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:350
+msgid "Source text or target language is missing."
+msgstr ""
+
+#: pelikan-ai-translator-for-polylang.php:357
+msgid "API Key is not configured."
+msgstr ""
+
+#. translators: 1: HTTP status code, 2: Response body.
+#: pelikan-ai-translator-for-polylang.php:403
+#, php-format
+msgid "API returned status code %1$d: %2$s"
 msgstr ""
 
 #. Plugin Name of the plugin/theme
@@ -101,8 +164,7 @@ msgid "https://wordpress.org/plugins/pelikan-ai-translator-for-polylang"
 msgstr ""
 
 #. Description of the plugin/theme
-msgid ""
-"Adds automated translation capabilities to PolyLang string translation."
+msgid "Adds automated translation capabilities to PolyLang string translation."
 msgstr ""
 
 #. Author of the plugin/theme
