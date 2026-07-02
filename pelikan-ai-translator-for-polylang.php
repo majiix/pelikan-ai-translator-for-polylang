@@ -2,6 +2,7 @@
 /**
  * Plugin Name:       Pelikan AI Translator for Polylang
  * Plugin URI:        https://wordpress.org/plugins/pelikan-ai-translator-for-polylang
+ * Description:       Adds automated translation capabilities to PolyLang string translation.
  * Version:           1.0.3
  * Requires at least: 5.8
  * Requires PHP:      7.4
@@ -334,8 +335,8 @@ class Polai_Translator {
 			<div class="notice notice-warning is-dismissible">
 				<p>
 					<?php
-					// translators: 1: Open strong tag, 2: Close strong tag.
 					printf(
+						// translators: 1: Open strong tag, 2: Close strong tag.
 						esc_html__( '%1$sPelikan AI Translator for Polylang%2$s requires the Polylang plugin to be installed and active.', 'pelikan-ai-translator-for-polylang' ),
 						'<strong>',
 						'</strong>'
@@ -350,6 +351,7 @@ class Polai_Translator {
 		// Check if API key is set.
 		$api_key = get_option( 'polai_api_key', '' );
 		if ( empty( $api_key ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
 			$screen       = get_current_screen();
 			if ( 'polai-translator' === $current_page || ( $screen && 'plugins' === $screen->id ) ) {
@@ -358,8 +360,8 @@ class Polai_Translator {
 					<p>
 						<?php
 						$settings_url = admin_url( 'admin.php?page=polai-translator' );
-						// translators: 1: Open anchor tag, 2: Close anchor tag.
 						printf(
+							// translators: 1: Open anchor tag, 2: Close anchor tag.
 							esc_html__( 'Pelikan AI Translator for Polylang is active but not configured yet. Please %1$sconfigure your API Key%2$s.', 'pelikan-ai-translator-for-polylang' ),
 							'<a href="' . esc_url( $settings_url ) . '">',
 							'</a>'

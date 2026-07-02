@@ -16,4 +16,7 @@ step 3:
 4- Implement admin notice warnings for missing Polylang plugin and unconfigured API credentials.
 5- Add model default fallback values, request encoding checks, response format verification, and sanitized error body output inside the WordPress AJAX translate handler.
 6- Update version numbers to 1.0.3 across plugin files.
-Commit message: refactor(core): harden error handling, add admin notices, and improve JS compatibility
+7- Fix PHPCS nonce verification warning on GET variable lookup.
+8- Fix missing translators comments errors by placing them immediately preceding translating functions.
+9- Restore missing Description header to the main plugin bootstrap file.
+Commit message: fix(phpcs): resolve PHPCS warning and error feedback for WordPress compliance
