@@ -4,7 +4,7 @@ Contributors: micromax2
 Tags: polylang, translation, automated, openrouter, multilingual
 Requires at least: 5.8
 Tested up to: 7.0
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -66,6 +66,13 @@ You can use any text generation model available on OpenRouter by entering its ex
 No. Currently, this plugin focuses exclusively on the "Strings translations" section of Polylang, allowing you to quickly localize common theme strings, widget texts, and plugin options.
 
 == Changelog ==
+
+= 1.0.3 =
+* Hardened AJAX translation pipeline against JSON decoding warning/notice vectors.
+* Added fallback default Gemini model logic when configuration values are missing.
+* Added dismissible dashboard notices for missing Polylang plugin and unconfigured API keys.
+* Enhanced admin.js to safely check for localization payload parameters and prevent crashes on other dashboard pages.
+* Cleaned up unused site name parsing logic on core scripts enqueuing.
 
 = 1.0.2 =
 * Securely routed translation API requests through server-side WordPress AJAX.

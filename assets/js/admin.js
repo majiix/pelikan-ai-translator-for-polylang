@@ -1,6 +1,11 @@
 document.addEventListener( 'DOMContentLoaded', function() {
-	// Access localized data provided by PHP utilizing the new polai prefix
-	const { hasApiKey, model, ajaxUrl, nonce, activeLanguages, i18n } = polaiTranslatorData;
+	// Guard against undefined localized data (e.g. if loaded on other pages or aggregated).
+	if ( typeof polaiTranslatorData === 'undefined' ) {
+		return;
+	}
+
+	// Access localized data provided by PHP utilizing the new polai prefix with safe fallbacks
+	const { hasApiKey, model, ajaxUrl, nonce, activeLanguages = [], i18n = {} } = polaiTranslatorData;
 
 	// --- Settings Page Custom Dropdown and AJAX Model Load ---
 	const dropdown = document.getElementById( 'polai_model_dropdown' );
@@ -111,7 +116,9 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 			// If current selection is not represented in the list (e.g. initial load with custom saved model),
 			// update the trigger text manually to show the value.
-			const foundSelected = list.find( m => m.id === currentSelection );
+			const foundSelected = list.find( function( m ) {
+				return m.id === currentSelection;
+			} );
 			if ( ! foundSelected ) {
 				selectedText.textContent = currentSelection;
 			}
@@ -188,7 +195,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 				const iconWrapper = document.createElement( 'span' );
 				iconWrapper.className = 'polai-icon-button';
-				iconWrapper.title = i18n.translateInto + ' ' + langText;
+				iconWrapper.title = ( i18n.translateInto || 'Translate into' ) + ' ' + langText;
 
 				const icon = document.createElement( 'span' );
 				icon.className = 'dashicons dashicons-translation';
@@ -222,11 +229,9 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					}
 
 					if ( ! sourceText ) {
-						alert( i18n.noSource );
+						alert( i18n.noSource || 'No source text found.' );
 						return;
 					}
-
-					const prompt = 'You are a helpful translation assistant. Translate the following English phrase into ' + langText + '. Respond only with the translated text and nothing else and if there are html elements inside text do not remove them and also Never use mdash in any text and use a regular hyphen or alternative wording instead: ' + sourceText;
 
 					iconWrapper.classList.add( 'loading' );
 
@@ -256,12 +261,12 @@ document.addEventListener( 'DOMContentLoaded', function() {
 						if ( data.success && data.data && data.data.translation ) {
 							input.value = data.data.translation;
 						} else {
-							const errorMsg = data.data && data.data.message ? data.data.message : i18n.failedEmpty;
+							const errorMsg = data.data && data.data.message ? data.data.message : ( i18n.failedEmpty || 'Translation failed or empty response.' );
 							alert( errorMsg );
 						}
 					} catch ( err ) {
 						console.error( 'API error:', err );
-						alert( i18n.failedConsole );
+						alert( i18n.failedConsole || 'Translation failed. Check console for details.' );
 					} finally {
 						iconWrapper.classList.remove( 'loading' );
 					}

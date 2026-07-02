@@ -2,8 +2,7 @@
 /**
  * Plugin Name:       Pelikan AI Translator for Polylang
  * Plugin URI:        https://wordpress.org/plugins/pelikan-ai-translator-for-polylang
- * Description:       Adds automated translation capabilities to PolyLang string translation.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            micromax
@@ -19,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin version constant with the required prefix.
-define( 'POLAI_VERSION', '1.0.2' );
+define( 'POLAI_VERSION', '1.0.3' );
 
 class Polai_Translator {
 
@@ -32,6 +31,7 @@ class Polai_Translator {
 		add_action( 'admin_menu', array( $this, 'add_settings_page' ), 99 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		add_action( 'wp_ajax_polai_translate', array( $this, 'ajax_translate' ) );
+		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 	}
 
 	/**
@@ -299,15 +299,6 @@ class Polai_Translator {
 			}
 		}
 
-		// Ensure site name contains only ASCII characters to prevent JS fetch header errors.
-		$raw_site_name  = wp_strip_all_tags( get_bloginfo( 'name' ) );
-		$safe_site_name = preg_replace( '/[^\x20-\x7E]/', '', $raw_site_name );
-
-		// Fallback if the entire site name was non-ASCII.
-		if ( empty( trim( $safe_site_name ) ) ) {
-			$safe_site_name = 'Polai Translator';
-		}
-
 		// Localize script to pass PHP variables to Javascript safely.
 		wp_localize_script(
 			'polai-admin-script',
@@ -326,6 +317,59 @@ class Polai_Translator {
 				)
 			)
 		);
+	}
+
+	/**
+	 * Display admin notices if Polylang is missing or API credentials are not set.
+	 */
+	public function admin_notices() {
+		// Only show notices to users who can manage options.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// Check if Polylang is active.
+		if ( ! function_exists( 'pll_languages_list' ) ) {
+			?>
+			<div class="notice notice-warning is-dismissible">
+				<p>
+					<?php
+					// translators: 1: Open strong tag, 2: Close strong tag.
+					printf(
+						esc_html__( '%1$sPelikan AI Translator for Polylang%2$s requires the Polylang plugin to be installed and active.', 'pelikan-ai-translator-for-polylang' ),
+						'<strong>',
+						'</strong>'
+					);
+					?>
+				</p>
+			</div>
+			<?php
+			return;
+		}
+
+		// Check if API key is set.
+		$api_key = get_option( 'polai_api_key', '' );
+		if ( empty( $api_key ) ) {
+			$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+			$screen       = get_current_screen();
+			if ( 'polai-translator' === $current_page || ( $screen && 'plugins' === $screen->id ) ) {
+				?>
+				<div class="notice notice-info is-dismissible">
+					<p>
+						<?php
+						$settings_url = admin_url( 'admin.php?page=polai-translator' );
+						// translators: 1: Open anchor tag, 2: Close anchor tag.
+						printf(
+							esc_html__( 'Pelikan AI Translator for Polylang is active but not configured yet. Please %1$sconfigure your API Key%2$s.', 'pelikan-ai-translator-for-polylang' ),
+							'<a href="' . esc_url( $settings_url ) . '">',
+							'</a>'
+						);
+						?>
+					</p>
+				</div>
+				<?php
+			}
+		}
 	}
 
 	/**
@@ -357,6 +401,11 @@ class Polai_Translator {
 			wp_send_json_error( array( 'message' => __( 'API Key is not configured.', 'pelikan-ai-translator-for-polylang' ) ), 400 );
 		}
 
+		// Fallback if the saved model option is somehow empty.
+		if ( empty( $model ) ) {
+			$model = 'google/gemini-3-flash-preview';
+		}
+
 		// Ensure site name contains only ASCII characters.
 		$raw_site_name  = wp_strip_all_tags( get_bloginfo( 'name' ) );
 		$safe_site_name = preg_replace( '/[^\x20-\x7E]/', '', $raw_site_name );
@@ -366,12 +415,25 @@ class Polai_Translator {
 
 		$prompt = 'You are a helpful translation assistant. Translate the following English phrase into ' . $target_lang . '. Respond only with the translated text and nothing else and if there are html elements inside text do not remove them and also Never use mdash in any text and use a regular hyphen or alternative wording instead: ' . $source_text;
 
+		$body_data = wp_json_encode( array(
+			'model'    => $model,
+			'messages' => array(
+				array(
+					'role'    => 'user',
+					'content' => $prompt,
+				),
+			),
+		) );
+
+		if ( false === $body_data ) {
+			wp_send_json_error( array( 'message' => __( 'Failed to encode request data.', 'pelikan-ai-translator-for-polylang' ) ), 400 );
+		}
+
 		$response = wp_remote_post(
 			'https://openrouter.ai/api/v1/chat/completions',
 			array(
 				'timeout'     => 30,
 				'redirection' => 5,
-				'httpversion' => '1.0',
 				'blocking'    => true,
 				'headers'     => array(
 					'Content-Type'  => 'application/json',
@@ -379,33 +441,42 @@ class Polai_Translator {
 					'HTTP-Referer'  => esc_url_raw( get_site_url() ),
 					'X-Title'       => $safe_site_name,
 				),
-				'body'        => wp_json_encode( array(
-					'model'    => $model,
-					'messages' => array(
-						array(
-							'role'    => 'user',
-							'content' => $prompt,
-						),
-					),
-				) ),
+				'body'        => $body_data,
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( array( 'message' => $response->get_error_message() ), 500 );
+			wp_send_json_error( array( 'message' => sanitize_text_field( $response->get_error_message() ) ), 500 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
 		$body          = wp_remote_retrieve_body( $response );
 
+		// Parse JSON response.
+		$data = json_decode( $body, true );
+
 		if ( 200 !== $response_code ) {
-			// translators: 1: HTTP status code, 2: Response body.
-			$error_message = sprintf( __( 'API returned status code %1$d: %2$s', 'pelikan-ai-translator-for-polylang' ), $response_code, $body );
+			$error_message = '';
+			if ( is_array( $data ) && isset( $data['error']['message'] ) ) {
+				$error_message = sanitize_text_field( $data['error']['message'] );
+			} elseif ( is_array( $data ) && isset( $data['error'] ) && is_string( $data['error'] ) ) {
+				$error_message = sanitize_text_field( $data['error'] );
+			} else {
+				// translators: %d: HTTP status code.
+				$error_message = sprintf( __( 'API request failed with status code %d.', 'pelikan-ai-translator-for-polylang' ), $response_code );
+			}
 			wp_send_json_error( array( 'message' => $error_message ), 500 );
 		}
 
-		$data = json_decode( $body, true );
-		$translated_text = isset( $data['choices'][0]['message']['content'] ) ? $data['choices'][0]['message']['content'] : '';
+		// Check for error in the payload even for 200 responses.
+		if ( is_array( $data ) && isset( $data['error']['message'] ) ) {
+			wp_send_json_error( array( 'message' => sanitize_text_field( $data['error']['message'] ) ), 500 );
+		}
+
+		$translated_text = '';
+		if ( is_array( $data ) && isset( $data['choices'][0]['message']['content'] ) ) {
+			$translated_text = $data['choices'][0]['message']['content'];
+		}
 
 		if ( ! empty( $translated_text ) ) {
 			// Remove surrounding quotes if they were added unnecessarily.

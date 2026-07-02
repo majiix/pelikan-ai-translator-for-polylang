@@ -20,3 +20,12 @@
 
 ## System Cleanup
 - Automatic database option cleanup on plugin uninstallation.
+
+## System Notices & Diagnostics
+- Auto-detects if Polylang is missing or inactive and displays a warning notice in the WP dashboard.
+- Displays configuration warnings if the OpenRouter API Key is empty.
+
+## Fault Tolerance
+- Fallback logic to a default model if options are empty.
+- Defensive JSON parsing and validation to prevent PHP warnings/notices and server-side 500 errors.
+- Graceful client-side scripts execution guards to prevent errors on non-translation admin screens.
