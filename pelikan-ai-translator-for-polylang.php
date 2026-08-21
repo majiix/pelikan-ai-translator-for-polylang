@@ -3,7 +3,7 @@
  * Plugin Name:       Pelikan AI Translator for Polylang
  * Plugin URI:        https://wordpress.org/plugins/pelikan-ai-translator-for-polylang
  * Description:       Adds automated translation capabilities to PolyLang string translation.
- * Version:           1.0.3
+ * Version:           1.0.4
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            micromax
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin version constant with the required prefix.
-define( 'POLAI_VERSION', '1.0.3' );
+define( 'POLAI_VERSION', '1.0.4' );
 
 class Polai_Translator {
 

@@ -20,3 +20,7 @@ step 3:
 8- Fix missing translators comments errors by placing them immediately preceding translating functions.
 9- Restore missing Description header to the main plugin bootstrap file.
 Commit message: fix(phpcs): resolve PHPCS warning and error feedback for WordPress compliance
+
+step 4:
+1- Verified full compatibility with WordPress 7.1.0 and updated Tested up to header to 7.1.
+2- Bumped plugin version to 1.0.4 across main plugin file and readme.txt.
