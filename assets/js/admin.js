@@ -161,7 +161,49 @@ document.addEventListener( 'DOMContentLoaded', function() {
 	}
 
 	// --- Polylang Strings Translation Engine ---
-	const translationCells = document.querySelectorAll( 'td.column-translations' );
+	const translationCells = document.querySelectorAll( '.column-translations' );
+
+	/**
+	 * Extract source string text from a table row.
+	 *
+	 * Polylang uses WP_List_Table where the string column is the primary column,
+	 * rendered as a `<th class="string column-string...">` or `<td class="column-string">`.
+	 * Extraneous elements like toggle buttons, row actions, and screen reader text are stripped.
+	 *
+	 * @param {HTMLTableRowElement} row
+	 * @returns {string}
+	 */
+	function getRowSourceText( row ) {
+		if ( ! row ) {
+			return '';
+		}
+
+		const sourceCell = row.querySelector( '.column-string, th.string, td.string' );
+		if ( sourceCell ) {
+			const cellClone = sourceCell.cloneNode( true );
+			const unwanted = cellClone.querySelectorAll( '.toggle-row, .row-actions, .screen-reader-text, button' );
+			unwanted.forEach( function( el ) {
+				el.remove();
+			} );
+
+			const text = cellClone.textContent.trim();
+			if ( text ) {
+				return text;
+			}
+		}
+
+		// Fallback to accessibility label in checkbox column: "Select <String>"
+		const cbLabel = row.querySelector( 'td.check-column label.screen-reader-text' );
+		if ( cbLabel && cbLabel.textContent ) {
+			const cbText = cbLabel.textContent.trim();
+			const prefix = 'Select ';
+			if ( cbText.startsWith( prefix ) ) {
+				return cbText.substring( prefix.length ).trim();
+			}
+		}
+
+		return '';
+	}
 
 	if ( hasApiKey && model && translationCells.length > 0 ) {
 		// Normalize active languages to lowercase for robust matching
@@ -180,12 +222,34 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					return;
 				}
 
-				const langText = label.textContent.trim();
+				// Clone label to safely get language text without any inserted button text
+				const labelClone = label.cloneNode( true );
+				const existingBtn = labelClone.querySelector( '.polai-icon-button' );
+				if ( existingBtn ) {
+					existingBtn.remove();
+				}
+				const langText = labelClone.textContent.trim();
 				const langKey = langText.toLowerCase();
 
-				// Dynamic check against Polylang's active languages
-				if ( ! validLanguages.includes( langKey ) ) {
-					return;
+				// Extract language slug if available from name (e.g. translation[ar][...]) or id (e.g. ar-...)
+				let langSlug = '';
+				const nameMatch = input.name && input.name.match( /translation\[([^\]]+)\]/ );
+				if ( nameMatch ) {
+					langSlug = nameMatch[1].toLowerCase();
+				} else if ( input.id ) {
+					const idParts = input.id.split( '-' );
+					if ( idParts.length > 1 ) {
+						langSlug = idParts[0].toLowerCase();
+					}
+				}
+
+				// Dynamic check against Polylang's active languages if configured
+				if ( validLanguages.length > 0 ) {
+					const matchesName = validLanguages.includes( langKey );
+					const matchesSlug = langSlug && validLanguages.includes( langSlug );
+					if ( ! matchesName && ! matchesSlug ) {
+						return;
+					}
 				}
 
 				// Prevent duplicate buttons using the new CSS class prefix
@@ -203,30 +267,16 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 				label.appendChild( iconWrapper );
 
-				iconWrapper.addEventListener( 'click', async function() {
+				iconWrapper.addEventListener( 'click', async function( e ) {
+					e.preventDefault();
+					e.stopPropagation();
+
 					const row = cell.closest( 'tr' );
 					if ( ! row ) {
 						return;
 					}
 
-					let sourceText = '';
-					const sourceCell = row.querySelector( 'td.column-string' );
-
-					if ( sourceCell ) {
-						// Extract text node to avoid getting child tags if any
-						const sourceNode = Array.from( sourceCell.childNodes ).find( function( n ) {
-							return n.nodeType === Node.TEXT_NODE;
-						});
-
-						if ( sourceNode ) {
-							sourceText = sourceNode.textContent.trim();
-						}
-
-						// Fallback if structure is different
-						if ( ! sourceText ) {
-							sourceText = sourceCell.innerText.trim();
-						}
-					}
+					const sourceText = getRowSourceText( row );
 
 					if ( ! sourceText ) {
 						alert( i18n.noSource || 'No source text found.' );
@@ -260,6 +310,8 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 						if ( data.success && data.data && data.data.translation ) {
 							input.value = data.data.translation;
+							input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+							input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 						} else {
 							const errorMsg = data.data && data.data.message ? data.data.message : ( i18n.failedEmpty || 'Translation failed or empty response.' );
 							alert( errorMsg );

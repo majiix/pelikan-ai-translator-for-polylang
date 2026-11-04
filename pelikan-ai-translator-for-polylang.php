@@ -3,7 +3,7 @@
  * Plugin Name:       Pelikan AI Translator for Polylang
  * Plugin URI:        https://wordpress.org/plugins/pelikan-ai-translator-for-polylang
  * Description:       Adds automated translation capabilities to PolyLang string translation.
- * Version:           1.0.4
+ * Version:           1.0.5
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            micromax
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin version constant with the required prefix.
-define( 'POLAI_VERSION', '1.0.4' );
+define( 'POLAI_VERSION', '1.0.5' );
 
 class Polai_Translator {
 
@@ -291,12 +291,16 @@ class Polai_Translator {
 		$api_key = get_option( 'polai_api_key', '' );
 		$model   = get_option( 'polai_model', 'google/gemini-3-flash-preview' );
 
-		// Fetch active language names dynamically from Polylang.
+		// Fetch active language names and slugs dynamically from Polylang.
 		$active_languages = array();
 		if ( function_exists( 'pll_languages_list' ) ) {
 			$polylang_names = pll_languages_list( array( 'fields' => 'name', 'hide_empty' => 0 ) );
+			$polylang_slugs = pll_languages_list( array( 'fields' => 'slug', 'hide_empty' => 0 ) );
 			if ( is_array( $polylang_names ) ) {
-				$active_languages = array_values( $polylang_names );
+				$active_languages = array_merge( $active_languages, array_values( $polylang_names ) );
+			}
+			if ( is_array( $polylang_slugs ) ) {
+				$active_languages = array_merge( $active_languages, array_values( $polylang_slugs ) );
 			}
 		}
 
@@ -415,7 +419,7 @@ class Polai_Translator {
 			$safe_site_name = 'Polai Translator';
 		}
 
-		$prompt = 'You are a helpful translation assistant. Translate the following English phrase into ' . $target_lang . '. Respond only with the translated text and nothing else and if there are html elements inside text do not remove them and also Never use mdash in any text and use a regular hyphen or alternative wording instead: ' . $source_text;
+		$prompt = 'You are a helpful translation assistant. Translate the following text into ' . $target_lang . '. Respond only with the translated text and nothing else and if there are html elements inside text do not remove them and also Never use mdash in any text and use a regular hyphen or alternative wording instead: ' . $source_text;
 
 		$body_data = wp_json_encode( array(
 			'model'    => $model,

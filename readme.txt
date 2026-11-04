@@ -4,7 +4,7 @@ Contributors: micromax2
 Tags: polylang, translation, automated, openrouter, multilingual
 Requires at least: 5.8
 Tested up to: 7.1
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -67,6 +67,11 @@ No. Currently, this plugin focuses exclusively on the "Strings translations" sec
 
 == Changelog ==
 
+= 1.0.5 =
+* Fixed "No source text found" error by ensuring full compatibility with primary column table header tags (th.column-string).
+* Cleaned extracted source text by stripping WordPress table actions and toggle buttons.
+* Enhanced language code and slug matching dynamically across all Polylang versions.
+* Bumped plugin version to 1.0.5.
 = 1.0.4 =
 * Verified compatibility with WordPress 7.1.0 and updated Tested up to header.
 * Bumped plugin version to 1.0.4.
