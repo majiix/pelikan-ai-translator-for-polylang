@@ -11,5 +11,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 // Delete options.
+delete_option( 'polai_provider' );
+delete_option( 'polai_provider_configs' );
 delete_option( 'polai_api_key' );
 delete_option( 'polai_model' );

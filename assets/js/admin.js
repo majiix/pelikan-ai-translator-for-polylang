@@ -1,72 +1,59 @@
 document.addEventListener( 'DOMContentLoaded', function() {
-	// Guard against undefined localized data (e.g. if loaded on other pages or aggregated).
 	if ( typeof polaiTranslatorData === 'undefined' ) {
 		return;
 	}
 
-	// Access localized data provided by PHP utilizing the new polai prefix with safe fallbacks
-	const { hasApiKey, model, ajaxUrl, nonce, activeLanguages = [], i18n = {} } = polaiTranslatorData;
+	const {
+		provider: initialProvider = 'openrouter',
+		isConfigured = false,
+		model = '',
+		ajaxUrl,
+		nonce,
+		fetchModelsNonce = '',
+		activeLanguages = [],
+		providersMeta = {},
+		providerConfigs = {},
+		i18n = {}
+	} = polaiTranslatorData;
 
-	// --- Settings Page Custom Dropdown and AJAX Model Load ---
-	const dropdown = document.getElementById( 'polai_model_dropdown' );
-	if ( dropdown ) {
+	// --- Settings Page Multi-Engine & Model Selector ---
+	const settingsForm = document.getElementById( 'polai_settings_form' );
+	if ( settingsForm ) {
+		const providerSelect = document.getElementById( 'polai_provider' );
+		const baseUrlGroup = document.getElementById( 'polai_base_url_group' );
+		const baseUrlInput = document.getElementById( 'polai_base_url' );
+		const accountIdGroup = document.getElementById( 'polai_account_id_group' );
+		const accountIdLabel = document.getElementById( 'polai_account_id_label' );
+		const accountIdInput = document.getElementById( 'polai_account_id' );
+		const apiKeyInput = document.getElementById( 'polai_api_key' );
+		const apiKeyOptional = document.getElementById( 'polai_api_key_optional' );
+		const togglePasswordBtn = document.querySelector( '.polai-toggle-password' );
+		const modelInput = document.getElementById( 'polai_model_input' );
+		const fetchModelsBtn = document.getElementById( 'polai_fetch_models_btn' );
+		const dropdown = document.getElementById( 'polai_model_dropdown' );
 		const trigger = dropdown.querySelector( '.polai-select-trigger' );
 		const selectedText = dropdown.querySelector( '.polai-selected-text' );
 		const searchInput = document.getElementById( 'polai_model_search' );
 		const optionsContainer = document.getElementById( 'polai_model_options' );
-		const hiddenInput = document.getElementById( 'polai_model' );
-		const togglePasswordBtn = document.querySelector( '.polai-toggle-password' );
-		const apiKeyInput = document.getElementById( 'polai_api_key' );
+		const hiddenStore = document.getElementById( 'polai_configs_hidden_store' );
 
+		const configsState = JSON.parse( JSON.stringify( providerConfigs || {} ) );
+		let currentProvider = providerSelect.value || initialProvider;
 		let modelsList = [];
-		let currentSelection = hiddenInput.value || 'google/gemini-3-flash-preview';
 
-		// Toggle password visibility
-		if ( togglePasswordBtn && apiKeyInput ) {
-			togglePasswordBtn.addEventListener( 'click', function() {
-				const isPassword = apiKeyInput.type === 'password';
-				apiKeyInput.type = isPassword ? 'text' : 'password';
-				const icon = togglePasswordBtn.querySelector( '.dashicons' );
-				if ( icon ) {
-					if ( isPassword ) {
-						icon.classList.remove( 'dashicons-visibility' );
-						icon.classList.add( 'dashicons-hidden' );
-					} else {
-						icon.classList.remove( 'dashicons-hidden' );
-						icon.classList.add( 'dashicons-visibility' );
-					}
-				}
-			} );
+		function saveActiveFieldsToState() {
+			configsState[ currentProvider ] = {
+				api_key: apiKeyInput.value,
+				model: modelInput.value.trim(),
+				account_id: accountIdInput.value.trim(),
+				base_url: baseUrlInput.value.trim()
+			};
 		}
 
-		// Toggle dropdown
-		trigger.addEventListener( 'click', function( e ) {
-			e.stopPropagation();
-			dropdown.classList.toggle( 'open' );
-			if ( dropdown.classList.contains( 'open' ) ) {
-				searchInput.focus();
-			}
-		} );
-
-		// Close on clicking outside
-		document.addEventListener( 'click', function( e ) {
-			if ( ! dropdown.contains( e.target ) ) {
-				dropdown.classList.remove( 'open' );
-			}
-		} );
-
-		// Local fallback list of models in case of fetch failure
-		const fallbackModels = [
-			{ id: 'google/gemini-3-flash-preview', name: 'Google: Gemini 3 Flash Preview' },
-			{ id: 'google/gemini-3.5-flash', name: 'Google: Gemini 3.5 Flash' },
-			{ id: 'meta-llama/llama-3-8b-instruct', name: 'Meta: Llama 3 8B Instruct' },
-			{ id: 'openai/gpt-4o-mini', name: 'OpenAI: GPT-4o Mini' },
-			{ id: 'mistralai/mistral-7b-instruct', name: 'Mistral: Mistral 7B Instruct' }
-		];
-
-		// Render options list helper
 		function renderOptions( list ) {
 			optionsContainer.innerHTML = '';
+			const currentModel = modelInput.value.trim();
+
 			if ( list.length === 0 ) {
 				const noResults = document.createElement( 'div' );
 				noResults.className = 'polai-select-no-results';
@@ -76,8 +63,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 			}
 
 			list.forEach( function( m ) {
-				const isSelected = m.id === currentSelection;
-
+				const isSelected = m.id === currentModel;
 				const option = document.createElement( 'div' );
 				option.className = 'polai-select-option' + ( isSelected ? ' selected' : '' );
 				option.setAttribute( 'data-value', m.id );
@@ -99,11 +85,8 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 				option.addEventListener( 'click', function( e ) {
 					e.stopPropagation();
-					currentSelection = m.id;
-					hiddenInput.value = m.id;
+					modelInput.value = m.id;
 					selectedText.textContent = m.name || m.id;
-
-					// Update option classes
 					dropdown.querySelectorAll( '.polai-select-option' ).forEach( function( opt ) {
 						opt.classList.remove( 'selected' );
 					} );
@@ -114,50 +97,149 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				optionsContainer.appendChild( option );
 			} );
 
-			// If current selection is not represented in the list (e.g. initial load with custom saved model),
-			// update the trigger text manually to show the value.
-			const foundSelected = list.find( function( m ) {
-				return m.id === currentSelection;
+			const found = list.find( function( m ) {
+				return m.id === currentModel;
 			} );
-			if ( ! foundSelected ) {
-				selectedText.textContent = currentSelection;
+			if ( ! found ) {
+				selectedText.textContent = currentModel || 'Select a preset model...';
 			}
 		}
 
-		// Fetch models via AJAX
-		async function fetchModels() {
+		async function fetchLiveModels( showErrorAlert ) {
+			const meta = providersMeta[ currentProvider ];
+			if ( ! meta || ! meta.can_fetch_models ) {
+				return;
+			}
+
+			fetchModelsBtn.disabled = true;
+			fetchModelsBtn.classList.add( 'loading' );
+
 			try {
-				const response = await fetch( 'https://openrouter.ai/api/v1/models' );
-				if ( ! response.ok ) {
-					throw new Error( 'Network error fetching models' );
-				}
+				const formData = new URLSearchParams();
+				formData.append( 'action', 'polai_fetch_models' );
+				formData.append( 'nonce', fetchModelsNonce );
+				formData.append( 'provider', currentProvider );
+				formData.append( 'api_key', apiKeyInput.value );
+				formData.append( 'account_id', accountIdInput.value.trim() );
+				formData.append( 'base_url', baseUrlInput.value.trim() );
+
+				const response = await fetch( ajaxUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: formData.toString()
+				} );
 				const data = await response.json();
-				if ( data && Array.isArray( data.data ) ) {
-					modelsList = data.data.map( function( m ) {
-						return { id: m.id, name: m.name };
-					} );
-				} else {
-					throw new Error( 'Invalid data format' );
+
+				if ( data.success && data.data && Array.isArray( data.data.models ) && data.data.models.length > 0 ) {
+					modelsList = data.data.models;
+					renderOptions( modelsList );
+				} else if ( showErrorAlert ) {
+					const msg = data.data && data.data.message ? data.data.message : 'Could not fetch models.';
+					alert( msg );
 				}
 			} catch ( err ) {
-				console.warn( 'Pelikan Translator: Failed to load models via API. Using local fallbacks.', err );
-				modelsList = fallbackModels;
+				if ( showErrorAlert ) {
+					alert( 'Failed to fetch models. Check console for details.' );
+				}
+				console.warn( 'Pelikan Translator: Model fetch failed, using presets.', err );
 			} finally {
-				renderOptions( modelsList );
+				fetchModelsBtn.disabled = false;
+				fetchModelsBtn.classList.remove( 'loading' );
 			}
 		}
 
-		// Initial load
-		fetchModels();
+		function applyProviderToForm( pid ) {
+			currentProvider = pid;
+			const meta = providersMeta[ pid ] || {};
+			const cfg = configsState[ pid ] || {};
 
-		// Search filter
+			apiKeyInput.value = cfg.api_key || '';
+			accountIdInput.value = cfg.account_id || '';
+			baseUrlInput.value = cfg.base_url || '';
+			modelInput.value = cfg.model || meta.default_model || '';
+
+			baseUrlGroup.style.display = meta.requires_base_url ? '' : 'none';
+			accountIdGroup.style.display = meta.requires_account_id ? '' : 'none';
+			if ( meta.account_id_label ) {
+				accountIdLabel.textContent = meta.account_id_label;
+			}
+			apiKeyOptional.style.display = meta.requires_key ? 'none' : '';
+			fetchModelsBtn.style.display = meta.can_fetch_models ? '' : 'none';
+
+			modelsList = Array.isArray( meta.preset_models ) ? meta.preset_models.slice() : [];
+			searchInput.value = '';
+			renderOptions( modelsList );
+
+			if ( meta.public_models ) {
+				fetchLiveModels( false );
+			}
+		}
+
+		if ( togglePasswordBtn && apiKeyInput ) {
+			togglePasswordBtn.addEventListener( 'click', function() {
+				const isPassword = apiKeyInput.type === 'password';
+				apiKeyInput.type = isPassword ? 'text' : 'password';
+				const icon = togglePasswordBtn.querySelector( '.dashicons' );
+				if ( icon ) {
+					icon.classList.toggle( 'dashicons-visibility', ! isPassword );
+					icon.classList.toggle( 'dashicons-hidden', isPassword );
+				}
+			} );
+		}
+
+		providerSelect.addEventListener( 'change', function() {
+			saveActiveFieldsToState();
+			applyProviderToForm( providerSelect.value );
+		} );
+
+		modelInput.addEventListener( 'input', function() {
+			selectedText.textContent = modelInput.value.trim() || 'Select a preset model...';
+		} );
+
+		fetchModelsBtn.addEventListener( 'click', function() {
+			fetchLiveModels( true );
+		} );
+
+		trigger.addEventListener( 'click', function( e ) {
+			e.stopPropagation();
+			dropdown.classList.toggle( 'open' );
+			if ( dropdown.classList.contains( 'open' ) ) {
+				searchInput.focus();
+			}
+		} );
+
+		document.addEventListener( 'click', function( e ) {
+			if ( ! dropdown.contains( e.target ) ) {
+				dropdown.classList.remove( 'open' );
+			}
+		} );
+
 		searchInput.addEventListener( 'input', function() {
 			const query = searchInput.value.toLowerCase().trim();
 			const filtered = modelsList.filter( function( m ) {
-				return m.id.toLowerCase().includes( query ) || m.name.toLowerCase().includes( query );
+				return m.id.toLowerCase().includes( query ) || ( m.name && m.name.toLowerCase().includes( query ) );
 			} );
 			renderOptions( filtered );
 		} );
+
+		settingsForm.addEventListener( 'submit', function() {
+			saveActiveFieldsToState();
+			hiddenStore.innerHTML = '';
+
+			Object.keys( configsState ).forEach( function( pid ) {
+				const cfg = configsState[ pid ] || {};
+				[ 'api_key', 'model', 'account_id', 'base_url' ].forEach( function( field ) {
+					const input = document.createElement( 'input' );
+					input.type = 'hidden';
+					input.name = 'polai_provider_configs[' + pid + '][' + field + ']';
+					input.value = cfg[ field ] || '';
+					hiddenStore.appendChild( input );
+				} );
+			} );
+		} );
+
+		// Initialize view on load.
+		applyProviderToForm( currentProvider );
 	}
 
 	// --- Polylang Strings Translation Engine ---
@@ -165,10 +247,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 	/**
 	 * Extract source string text from a table row.
-	 *
-	 * Polylang uses WP_List_Table where the string column is the primary column,
-	 * rendered as a `<th class="string column-string...">` or `<td class="column-string">`.
-	 * Extraneous elements like toggle buttons, row actions, and screen reader text are stripped.
 	 *
 	 * @param {HTMLTableRowElement} row
 	 * @returns {string}
@@ -192,7 +270,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 			}
 		}
 
-		// Fallback to accessibility label in checkbox column: "Select <String>"
 		const cbLabel = row.querySelector( 'td.check-column label.screen-reader-text' );
 		if ( cbLabel && cbLabel.textContent ) {
 			const cbText = cbLabel.textContent.trim();
@@ -205,11 +282,10 @@ document.addEventListener( 'DOMContentLoaded', function() {
 		return '';
 	}
 
-	if ( hasApiKey && model && translationCells.length > 0 ) {
-		// Normalize active languages to lowercase for robust matching
+	if ( isConfigured && model && translationCells.length > 0 ) {
 		const validLanguages = ( activeLanguages || [] ).map( function( lang ) {
 			return lang.toLowerCase();
-		});
+		} );
 
 		translationCells.forEach( function( cell ) {
 			const translations = cell.querySelectorAll( '.translation' );
@@ -222,7 +298,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					return;
 				}
 
-				// Clone label to safely get language text without any inserted button text
 				const labelClone = label.cloneNode( true );
 				const existingBtn = labelClone.querySelector( '.polai-icon-button' );
 				if ( existingBtn ) {
@@ -231,7 +306,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				const langText = labelClone.textContent.trim();
 				const langKey = langText.toLowerCase();
 
-				// Extract language slug if available from name (e.g. translation[ar][...]) or id (e.g. ar-...)
 				let langSlug = '';
 				const nameMatch = input.name && input.name.match( /translation\[([^\]]+)\]/ );
 				if ( nameMatch ) {
@@ -243,7 +317,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					}
 				}
 
-				// Dynamic check against Polylang's active languages if configured
 				if ( validLanguages.length > 0 ) {
 					const matchesName = validLanguages.includes( langKey );
 					const matchesSlug = langSlug && validLanguages.includes( langSlug );
@@ -252,7 +325,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					}
 				}
 
-				// Prevent duplicate buttons using the new CSS class prefix
 				if ( label.querySelector( '.polai-icon-button' ) ) {
 					return;
 				}
@@ -286,7 +358,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
 					iconWrapper.classList.add( 'loading' );
 
 					try {
-						// Create form data payload for WordPress AJAX.
 						const formData = new URLSearchParams();
 						formData.append( 'action', 'polai_translate' );
 						formData.append( 'nonce', nonce );
@@ -295,9 +366,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 						const response = await fetch( ajaxUrl, {
 							method: 'POST',
-							headers: {
-								'Content-Type': 'application/x-www-form-urlencoded'
-							},
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 							body: formData.toString()
 						} );
 
@@ -325,7 +394,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				} );
 			} );
 		} );
-	} else if ( ! hasApiKey || ! model ) {
-		console.warn( 'Pelikan Translator: API Key or Model is empty. Translation features are disabled. Please configure them in the settings.' );
+	} else if ( ! isConfigured || ! model ) {
+		console.warn( 'Pelikan Translator: Active AI engine is not configured. Translation features are disabled.' );
 	}
 } );
