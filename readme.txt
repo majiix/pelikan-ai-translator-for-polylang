@@ -1,6 +1,6 @@
 === Pelikan AI Translator for Polylang ===
 Contributors: micromax2
-Tags: polylang, translation, automated, openrouter, openai, gemini, ollama, multilingual
+Tags: polylang, translation, automated, openrouter, multilingual
 Requires at least: 5.8
 Tested up to: 7.1
 Stable tag: 1.1.0
